@@ -98,48 +98,44 @@ public class Server extends Application {
         String receiver;
 
         for (ClientHandler client : clients) {
-            if (client != clientHandlerSender) {
-                switch (type) {
-                    case "MESSAGE":
-                        receiver = parts[1];
-                        content = parts[2];
+            switch (type) {
+                case "MESSAGE":
+                    receiver = parts[1];
+                    content = parts[2];
 
-                        if (Objects.equals(client.getUsername(), receiver)) {
-                            client.sendMessage("MESSAGE:" + clientHandlerSender.getUsername() + ":" + content);
+                    if (Objects.equals(client.getUsername(), receiver)) {
+                        client.sendMessage("MESSAGE:" + clientHandlerSender.getUsername() + ":" + content);
+                        return;
+                    }
+
+                    break;
+
+                case "USER_CONNECTED":
+                    sender = parts[1];
+                    username = parts[2];
+
+                    if (Objects.equals(sender, "SERVER") && Objects.equals(username, "me")) {
+                        client.sendMessage("USER_CONNECTED:SERVER:" + clientHandlerSender.getUsername());
+                    }
+
+                    if (!Objects.equals(sender, "SERVER") && Objects.equals(username, "me")) {
+                        if (Objects.equals(client.getUsername(), sender)) {
+                            client.sendMessage("USER_CONNECTED:" + sender + ":" + clientHandlerSender.getUsername());
                             return;
                         }
+                    }
 
-                        break;
+                    break;
 
-                    case "USER_CONNECTED":
-                        sender = parts[1];
-                        username = parts[2];
+                case "USER_DISCONNECTED":
+                    this.removeClient(clientHandlerSender);
+                    client.sendMessage("USER_DISCONNECTED:SERVER:" + clientHandlerSender.getUsername());
 
-                        if (Objects.equals(sender, "SERVER") && Objects.equals(username, "me")) {
-                            client.sendMessage("USER_CONNECTED:SERVER:" + clientHandlerSender.getUsername());
-                        }
+                    break;
 
-                        if (!Objects.equals(sender, "SERVER") && Objects.equals(username, "me")) {
-                            if (Objects.equals(client.getUsername(), sender)) {
-                                client.sendMessage("USER_CONNECTED:" + sender + ":" + clientHandlerSender.getUsername());
-                                return;
-                            }
-                        }
-
-                        break;
-
-                    case "USER_DISCONNECTED":
-                        if (clients.contains(clientHandlerSender)) {
-                            this.removeClient(clientHandlerSender);
-                            client.sendMessage("USER_DISCONNECTED:SERVER:" + clientHandlerSender.getUsername());
-                        }
-
-                        break;
-
-                    default:
-                        System.err.println("Message de type inconnu reçu par le serveur: " + message);
-                        break;
-                }
+                default:
+                    System.err.println("Message de type inconnu reçu par le serveur: " + message);
+                    break;
             }
         }
     }

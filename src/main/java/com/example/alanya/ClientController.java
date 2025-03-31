@@ -46,9 +46,16 @@ public class ClientController {
     @FXML private Button sendMessageButton;
 
     private Client currentClient;
-
     public void setCurrentClient(Client client) {
         this.currentClient = client;
+    }
+
+    private static ClientController instance;
+    public static ClientController getInstance() {
+        if (instance == null) {
+            instance = new ClientController();
+        }
+        return instance;
     }
 
     private String currentUser = null;
@@ -103,9 +110,42 @@ public class ClientController {
             userChatHistories.get(username).setPadding(new Insets(10));
         }
 
-        // Remplacer le VBox de messages par l'historique de cet utilisateur
+        // Remplacer le contenu du VBox de messages par une copie de l'historique de cet utilisateur
         messagesVBox.getChildren().clear();
-        messagesVBox.getChildren().addAll(userChatHistories.get(username).getChildren());
+
+        // Créer une copie visuelle de chaque message dans l'historique
+        VBox userHistory = userChatHistories.get(username);
+        for (var node : userHistory.getChildren()) {
+            if (node instanceof HBox messageContainer) {
+                // Créer une copie de l'élément visuel pour l'affichage
+                HBox displayMessageContainer = new HBox();
+                displayMessageContainer.setPadding(new Insets(5));
+                displayMessageContainer.setMaxWidth(500);
+                displayMessageContainer.setAlignment(messageContainer.getAlignment());
+
+                // Copier le contenu du message
+                for (var child : messageContainer.getChildren()) {
+                    if (child instanceof TextFlow originalTextFlow) {
+                        TextFlow newTextFlow = new TextFlow();
+                        newTextFlow.setPadding(originalTextFlow.getPadding());
+                        newTextFlow.setStyle(originalTextFlow.getStyle());
+
+                        // Copier le texte
+                        for (var textNode : originalTextFlow.getChildren()) {
+                            if (textNode instanceof Text originalText) {
+                                Text newText = new Text(originalText.getText());
+                                newText.setFill(originalText.getFill());
+                                newTextFlow.getChildren().add(newText);
+                            }
+                        }
+
+                        displayMessageContainer.getChildren().add(newTextFlow);
+                    }
+                }
+
+                messagesVBox.getChildren().add(displayMessageContainer);
+            }
+        }
 
         // Faire défiler automatiquement vers le bas pour afficher les derniers messages
         Platform.runLater(() -> messagesScrollPane.setVvalue(1.0));
@@ -123,14 +163,14 @@ public class ClientController {
 
     @FXML
     public void onSendMessageClick(ActionEvent event) {
-        String messageText = messageInput.getText();
+        String messageText = messageInput.getText().trim();
 
-        if (messageText != null && !messageText.isEmpty() && currentUser != null) {
+        if (!messageText.isEmpty() && currentUser  != null) {
             // Ajouter le message à l'interface
-            addMessage(messageText, true, currentUser);
+            addMessage(messageText, true, currentUser );
 
             // Envoyer le message au serveur
-            this.currentClient.sendMessage("MESSAGE", currentUser, messageText);
+            this.currentClient.sendMessage("MESSAGE", currentUser , messageText);
 
             // Vider le champ de texte
             messageInput.clear();
@@ -140,10 +180,12 @@ public class ClientController {
     public void addMessage(String messageContent, boolean isSent, String username) {
         // Exécuter sur le thread JavaFX pour éviter les problèmes d'UI
         Platform.runLater(() -> {
+            // Créer le container du message
             HBox messageContainer = new HBox();
             messageContainer.setPadding(new Insets(5));
             messageContainer.setMaxWidth(500);
 
+            // Créer le contenu du message
             TextFlow textFlow = new TextFlow();
             Text text = new Text(messageContent);
             text.setFill(isSent ? Color.WHITE : Color.BLACK);
@@ -163,10 +205,27 @@ public class ClientController {
             }
             userChatHistories.get(username).getChildren().add(messageContainer);
 
-            // Si c'est l'utilisateur actuellement affiché, mettre à jour la vue
+            // Si c'est l'utilisateur actuellement affiché, créer une copie pour l'affichage
             if (username.equals(currentUser)) {
-                 // Ajouter directement à la vue des messages
-                 messagesVBox.getChildren().add(messageContainer);
+                // Créer une copie pour l'affichage
+                HBox displayMessageContainer = new HBox();
+                displayMessageContainer.setPadding(new Insets(5));
+                displayMessageContainer.setMaxWidth(500);
+                displayMessageContainer.setAlignment(messageContainer.getAlignment());
+
+                TextFlow displayTextFlow = new TextFlow();
+                Text displayText = new Text(messageContent);
+                displayText.setFill(isSent ? Color.WHITE : Color.BLACK);
+                displayTextFlow.getChildren().add(displayText);
+                displayTextFlow.setPadding(new Insets(8));
+                displayTextFlow.setStyle(isSent ?
+                        "-fx-background-color: #0091EA; -fx-background-radius: 10px;" :
+                        "-fx-background-color: #B3E5FC; -fx-background-radius: 10px;");
+
+                displayMessageContainer.getChildren().add(displayTextFlow);
+
+                // Ajouter à l'interface visuelle
+                messagesVBox.getChildren().add(displayMessageContainer);
 
                 // Faire défiler automatiquement vers le bas après avoir ajouté le message
                 messagesScrollPane.setVvalue(1.0);

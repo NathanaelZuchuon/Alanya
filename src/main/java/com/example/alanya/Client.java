@@ -132,77 +132,77 @@ public class Client extends Application {
     private record MessageReceiver(Socket socket, BufferedReader in) implements Runnable {
 
         @Override
-            public void run() {
-                try {
-                    String message;
-                    while ((message = in.readLine()) != null) {
-                        System.out.println("Message reçu: " + message);
+        public void run() {
+            try {
+                String message;
+                while ((message = in.readLine()) != null) {
+                    System.out.println("Message reçu: " + message);
 
-                        // Traitement du message selon son format
-                        processMessage(message);
-                    }
-
-                } catch (IOException e) {
-                    if (!socket.isClosed()) {
-                        Platform.runLater(() -> showConnectionError("Connexion perdue: " + e.getMessage()));
-                    }
-                }
-            }
-
-            private void processMessage(String message) {
-                // Format attendu: TYPE:EXPEDITEUR:CONTENU
-
-                String[] parts = message.split(":", 3);
-                if (parts.length < 2) {
-                    System.out.println("processMessage error on Client.");
-
-                    return;
+                    // Traitement du message selon son format
+                    processMessage(message);
                 }
 
-                String type = parts[0];
-
-                String sender;
-                String username;
-
-                switch (type) {
-                    case "MESSAGE":
-                        sender = parts[1];
-                        String content = parts[2];
-
-                        controller.addMessage(content, false, sender);
-
-                        break;
-
-                    case "USER_CONNECTED":
-                        sender = parts[1];
-
-                        username = parts[2];
-                        String finalUsername_c = username;
-
-                        if (Objects.equals(sender, "SERVER")) {
-                            out.println("USER_CONNECTED:" + username + ":me");
-                        }
-
-                        Platform.runLater(() -> {
-                            controller.addUser(finalUsername_c);
-                        });
-
-                        break;
-
-                    case "USER_DISCONNECTED":
-                        username = parts[2];
-                        String finalUsername_d = username;
-
-                        Platform.runLater(() -> {
-                            controller.removeUser(finalUsername_d);
-                        });
-
-                        break;
-
-                    default:
-                        System.out.println("Message de type inconnu reçu par le client: " + message);
-                        break;
+            } catch (IOException e) {
+                if (!socket.isClosed()) {
+                    Platform.runLater(() -> showConnectionError("Connexion perdue: " + e.getMessage()));
                 }
             }
         }
+
+        private void processMessage(String message) {
+            // Format attendu: TYPE:EXPEDITEUR:CONTENU
+
+            String[] parts = message.split(":", 3);
+            if (parts.length < 2) {
+                System.out.println("processMessage error on Client.");
+
+                return;
+            }
+
+            String type = parts[0];
+
+            String sender;
+            String username;
+
+            switch (type) {
+                case "MESSAGE":
+                    sender = parts[1];
+                    String content = parts[2];
+
+                    controller.addMessage(content, false, sender);
+
+                    break;
+
+                case "USER_CONNECTED":
+                    sender = parts[1];
+
+                    username = parts[2];
+                    String finalUsername_c = username;
+
+                    if (Objects.equals(sender, "SERVER")) {
+                        out.println("USER_CONNECTED:" + username + ":me");
+                    }
+
+                    Platform.runLater(() -> {
+                        controller.addUser(finalUsername_c);
+                    });
+
+                    break;
+
+                case "USER_DISCONNECTED":
+                    username = parts[2];
+                    String finalUsername_d = username;
+
+                    Platform.runLater(() -> {
+                        controller.removeUser(finalUsername_d);
+                    });
+
+                    break;
+
+                default:
+                    System.out.println("Message de type inconnu reçu par le client: " + message);
+                    break;
+            }
+        }
+    }
 }
