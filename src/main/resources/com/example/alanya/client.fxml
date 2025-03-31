@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.text.Text?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.control.ScrollPane?>
+
+<HBox fx:id="mainHBox" prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/23.0.1"
+      xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.alanya.ClientController">
+    <!-- Panneau gauche (20% de la largeur) -->
+    <AnchorPane fx:id="leftPane" prefHeight="600.0" prefWidth="180.0" style="-fx-background-color: #E1F5FE;">
+        <!-- ScrollPane avec la liste des utilisateurs -->
+        <ScrollPane fx:id="usersScrollPane" prefHeight="600.0" prefWidth="180.0" AnchorPane.bottomAnchor="0.0"
+                    AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0"
+                    style="-fx-background: #E1F5FE; -fx-border-color: #B3E5FC;">
+            <VBox fx:id="usersVBox" prefHeight="598.0" prefWidth="178.0" spacing="5.0"
+                  style="-fx-background-color: #E1F5FE; -fx-padding: 5;">
+                <Button fx:id="user1Button" mnemonicParsing="false" onAction="#onUserClick"
+                        prefHeight="40.0" prefWidth="178.0" text="Utilisateur 1"
+                        style="-fx-background-color: #B3E5FC; -fx-text-fill: #01579B;"/>
+                <Button fx:id="user2Button" mnemonicParsing="false" onAction="#onUserClick"
+                        prefHeight="40.0" prefWidth="178.0" text="Utilisateur 2"
+                        style="-fx-background-color: #B3E5FC; -fx-text-fill: #01579B;"/>
+            </VBox>
+        </ScrollPane>
+    </AnchorPane>
+
+    <!-- Panneau droit (80% de la largeur) -->
+    <StackPane fx:id="rightPaneContainer" prefHeight="600.0" prefWidth="720.0">
+        <!-- Contenu initial -->
+        <BorderPane fx:id="initialRightPane" prefHeight="600.0" prefWidth="720.0"
+                    style="-fx-background-color: #E1F5FE;">
+            <center>
+                <Text fx:id="welcomeText" strokeType="OUTSIDE" strokeWidth="0.0"
+                      text="Sélectionnez un utilisateur pour commencer à discuter."
+                      style="-fx-fill: #01579B; -fx-font-size: 18;" BorderPane.alignment="CENTER"/>
+            </center>
+        </BorderPane>
+
+        <!-- Interface de chat (initialement invisible) -->
+        <VBox fx:id="chatInterface" prefHeight="600.0" prefWidth="720.0" style="-fx-background-color: #E1F5FE;"
+              visible="false">
+            <!-- 1. En-tête avec photo de profil, nom d'utilisateur et bouton d'appel vidéo -->
+            <HBox fx:id="chatHeader" alignment="CENTER_LEFT" prefHeight="60.0" prefWidth="720.0" spacing="10.0"
+                  style="-fx-background-color: #B3E5FC; -fx-padding: 10;">
+                <ImageView fx:id="profilePicture" fitHeight="40.0" fitWidth="40.0" pickOnBounds="true"
+                           preserveRatio="true">
+                    <Image url="@client.png"/>
+                </ImageView>
+                <Text fx:id="userNameText" strokeType="OUTSIDE" strokeWidth="0.0" text="Nom d'utilisateur"
+                      style="-fx-fill: #01579B; -fx-font-size: 16;"/>
+                <HBox HBox.hgrow="ALWAYS"/>
+                <Button fx:id="videoCallButton" mnemonicParsing="false" onAction="#onVideoCallClick"
+                        text="Appel Vidéo" style="-fx-background-color: #4FC3F7; -fx-text-fill: white;"/>
+            </HBox>
+
+            <!-- 2. Zone des messages -->
+            <ScrollPane fx:id="messagesScrollPane" fitToWidth="true" prefHeight="480.0" prefWidth="720.0"
+                        vbarPolicy="ALWAYS" style="-fx-background: #E1F5FE; -fx-border-color: #B3E5FC;">
+                <VBox fx:id="messagesVBox" prefHeight="478.0" prefWidth="718.0" spacing="10.0"
+                      style="-fx-background-color: #E1F5FE; -fx-padding: 10;">
+                    <!-- Les messages seront ajoutés dynamiquement ici -->
+                </VBox>
+            </ScrollPane>
+
+            <!-- 3. Zone d'envoi de message -->
+            <HBox fx:id="messageInputArea" alignment="CENTER" prefHeight="60.0" prefWidth="720.0" spacing="10.0"
+                  style="-fx-background-color: #B3E5FC; -fx-padding: 10;">
+                <Button fx:id="sendFileButton" mnemonicParsing="false" onAction="#onSendFileClick" text="Fichier"
+                        style="-fx-background-color: #4FC3F7; -fx-text-fill: white;"/>
+                <TextField fx:id="messageInput" prefHeight="40.0" HBox.hgrow="ALWAYS"
+                           promptText="Écrivez votre message ici..."
+                           style="-fx-background-color: white; -fx-border-color: #B3E5FC;"/>
+                <Button fx:id="sendMessageButton" mnemonicParsing="false" onAction="#onSendMessageClick"
+                        text="Envoyer" style="-fx-background-color: #4FC3F7; -fx-text-fill: white;"/>
+            </HBox>
+        </VBox>
+    </StackPane>
+</HBox>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.text.Text?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.control.ScrollPane?>
+
+<HBox fx:id="mainHBox" prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/23.0.1"
+      xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.alanya.ServerController">
+    <!-- Panneau gauche (20% de la largeur) -->
+    <AnchorPane fx:id="leftPane" prefHeight="600.0" prefWidth="180.0">
+        <!-- ScrollPane avec deux boutons -->
+        <ScrollPane fx:id="clientsScrollPane" prefHeight="550.0" prefWidth="180.0" AnchorPane.leftAnchor="0.0"
+                    AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <VBox fx:id="clientsVBox" prefHeight="550.0" prefWidth="178.0">
+                <!-- Les boutons seront ajoutés dynamiquement ici -->
+            </VBox>
+        </ScrollPane>
+
+        <!-- Conteneur en bas avec le texte "x en ligne." -->
+        <AnchorPane fx:id="statusPane" layoutY="550.0" prefHeight="50.0" prefWidth="180.0"
+                    AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+            <Text fx:id="onlineCountText" layoutX="60.0" layoutY="30.0" strokeType="OUTSIDE" strokeWidth="0.0"
+                  text="x en ligne."/>
+        </AnchorPane>
+    </AnchorPane>
+
+    <!-- Panneau droit (80% de la largeur) -->
+    <BorderPane fx:id="rightPane" prefHeight="600.0" prefWidth="720.0">
+        <center>
+            <Text fx:id="serverStatusText" strokeType="OUTSIDE" strokeWidth="0.0" text="server"
+                  BorderPane.alignment="CENTER"/>
+        </center>
+    </BorderPane>
+</HBox>
