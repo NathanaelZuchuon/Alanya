@@ -18,6 +18,22 @@ public class Server extends Application {
     private ServerController controller;
     private ServerSocket serverSocket = null;
 
+    private String extractAfterSecondColon(String str) {
+        // Trouver l'index de la première occurrence de ":"
+        int firstColonIndex = str.indexOf(":");
+
+        // Trouver l'index de la deuxième occurrence de ":" en commençant la recherche après la première
+        int secondColonIndex = str.indexOf(":", firstColonIndex + 1);
+
+        // Si la deuxième occurrence existe, extraire la sous-chaîne à partir de cet index jusqu'à la fin
+        if (secondColonIndex != -1) {
+            return str.substring(secondColonIndex + 1);
+        }
+
+        // Retourner une chaîne vide ou un message d'erreur si la deuxième occurrence n'existe pas
+        return "";
+    }
+
     @Override
     public void start(Stage stage) {
         try {
@@ -81,8 +97,11 @@ public class Server extends Application {
 
     public void broadcastMessage(String message, ClientHandler clientHandlerSender) {
         // Format attendu: TYPE:RECEVEUR:CONTENU
+        // FILE_DATA:RECIPIENT:TRANSFER_ID:CHUNK
+        // [FILE_END|FILE_ERROR]:RECIPIENT:TRANSFER_ID
+        // FILE_INFO:RECIPIENT:TRANSFER_ID:FILE_NAME:FILE_LENGTH
 
-        String[] parts = message.split(":", 3);
+        String[] parts = message.split(":", -1);
 
         if (parts.length < 2) {
             System.out.println("broadcastMessage error on Server.");
@@ -97,14 +116,43 @@ public class Server extends Application {
         String username;
         String receiver;
 
-        for (ClientHandler client : clients) {
+        for (ClientHandler clientHandler : clients) {
             switch (type) {
+				case "FILE_END":
+					receiver = parts[1];
+
+					if (Objects.equals(clientHandler.getUsername(), receiver)) {
+						clientHandler.sendMessage("FILE_END:" + clientHandlerSender.getUsername() + ":" + extractAfterSecondColon(message));
+					}
+
+					break;
+
+				case "FILE_DATA", "FILE_ERROR":
+					receiver = parts[1];
+
+					if (Objects.equals(clientHandler.getUsername(), receiver)) {
+						clientHandler.sendMessage(message);
+						return;
+					}
+
+					break;
+
+                case "FILE_INFO":
+                    receiver = parts[1];
+
+                    if (Objects.equals(clientHandler.getUsername(), receiver)) {
+                        clientHandler.sendMessage("FILE_INFO:" + clientHandlerSender.getUsername() + ":" + extractAfterSecondColon(message));
+                        return;
+                    }
+
+                    break;
+
                 case "MESSAGE":
                     receiver = parts[1];
                     content = parts[2];
 
-                    if (Objects.equals(client.getUsername(), receiver)) {
-                        client.sendMessage("MESSAGE:" + clientHandlerSender.getUsername() + ":" + content);
+                    if (Objects.equals(clientHandler.getUsername(), receiver)) {
+                        clientHandler.sendMessage("MESSAGE:" + clientHandlerSender.getUsername() + ":" + content);
                         return;
                     }
 
@@ -115,12 +163,12 @@ public class Server extends Application {
                     username = parts[2];
 
                     if (Objects.equals(sender, "SERVER") && Objects.equals(username, "me")) {
-                        client.sendMessage("USER_CONNECTED:SERVER:" + clientHandlerSender.getUsername());
+                        clientHandler.sendMessage("USER_CONNECTED:SERVER:" + clientHandlerSender.getUsername());
                     }
 
                     if (!Objects.equals(sender, "SERVER") && Objects.equals(username, "me")) {
-                        if (Objects.equals(client.getUsername(), sender)) {
-                            client.sendMessage("USER_CONNECTED:" + sender + ":" + clientHandlerSender.getUsername());
+                        if (Objects.equals(clientHandler.getUsername(), sender)) {
+                            clientHandler.sendMessage("USER_CONNECTED:" + sender + ":" + clientHandlerSender.getUsername());
                             return;
                         }
                     }
@@ -129,7 +177,7 @@ public class Server extends Application {
 
                 case "USER_DISCONNECTED":
                     this.removeClient(clientHandlerSender);
-                    client.sendMessage("USER_DISCONNECTED:SERVER:" + clientHandlerSender.getUsername());
+                    clientHandler.sendMessage("USER_DISCONNECTED:SERVER:" + clientHandlerSender.getUsername());
 
                     break;
 
