@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane fx:id="videoCallPane" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/15.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.alanya.VideoCallController">
+    <center>
+        <StackPane>
+            <ImageView fx:id="remoteVideoView" fitHeight="500.0" fitWidth="700.0" preserveRatio="true" />
+        </StackPane>
+    </center>
+    <bottom>
+        <VBox alignment="CENTER" spacing="10.0">
+            <padding>
+                <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+            </padding>
+            <Label fx:id="callStatusLabel" text="Démarrage de l'appel..." />
+            <HBox alignment="CENTER" spacing="20.0">
+                <Button fx:id="endCallButton" text="Terminer l'appel" style="-fx-background-color: #ff5252; -fx-text-fill: white;" />
+            </HBox>
+        </VBox>
+    </bottom>
+    <right>
+        <VBox alignment="TOP_CENTER" prefWidth="200.0">
+            <padding>
+                <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+            </padding>
+            <Label fx:id="partnerNameLabel" text="En appel avec..." />
+            <ImageView fx:id="localVideoView" fitHeight="180.0" fitWidth="180.0" preserveRatio="true" style="-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 10, 0, 0, 0);" />
+        </VBox>
+    </right>
+</BorderPane>

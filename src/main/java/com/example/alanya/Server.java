@@ -19,10 +19,10 @@ public class Server extends Application {
     private ServerSocket serverSocket = null;
 
     private String extractAfterSecondColon(String str) {
-        // Trouver l'index de la première occurrence de ":"
+        // Trouver l'index de la première occurrence de " : "
         int firstColonIndex = str.indexOf(":");
 
-        // Trouver l'index de la deuxième occurrence de ":" en commençant la recherche après la première
+        // Trouver l'index de la deuxième occurrence de " : " en commençant la recherche après la première
         int secondColonIndex = str.indexOf(":", firstColonIndex + 1);
 
         // Si la deuxième occurrence existe, extraire la sous-chaîne à partir de cet index jusqu'à la fin
@@ -52,7 +52,6 @@ public class Server extends Application {
 
             // Récupérer le contrôleur du serveur
             controller = fxmlLoader.getController();
-            controller.setServerInstance(this);
 
             // Démarrer le serveur dans un thread séparé
             new Thread(this::startServer).start();
@@ -118,6 +117,7 @@ public class Server extends Application {
 
         for (ClientHandler clientHandler : clients) {
             switch (type) {
+                // --- FILE
 				case "FILE_END":
 					receiver = parts[1];
 
@@ -146,7 +146,9 @@ public class Server extends Application {
                     }
 
                     break;
+                // ---
 
+                // --- MESSAGE
                 case "MESSAGE":
                     receiver = parts[1];
                     content = parts[2];
@@ -157,7 +159,9 @@ public class Server extends Application {
                     }
 
                     break;
+                // ---
 
+                // --- USER
                 case "USER_CONNECTED":
                     sender = parts[1];
                     username = parts[2];
@@ -180,6 +184,55 @@ public class Server extends Application {
                     clientHandler.sendMessage("USER_DISCONNECTED:SERVER:" + clientHandlerSender.getUsername());
 
                     break;
+                // ---
+
+                // --- VIDEO-CALL
+                case "VIDEO_CALL_REQUEST":
+                    receiver = parts[1];
+
+                    if (Objects.equals(clientHandler.getUsername(), receiver)) {
+                        clientHandler.sendMessage("VIDEO_CALL_REQUEST:" + clientHandlerSender.getUsername() + ":");
+                        return;
+                    }
+                    break;
+
+                case "VIDEO_CALL_ACCEPT":
+                    receiver = parts[1];
+
+                    if (Objects.equals(clientHandler.getUsername(), receiver)) {
+                        clientHandler.sendMessage("VIDEO_CALL_ACCEPT:" + clientHandlerSender.getUsername() + ":");
+                        return;
+                    }
+                    break;
+
+                case "VIDEO_CALL_REJECT":
+                    receiver = parts[1];
+
+                    if (Objects.equals(clientHandler.getUsername(), receiver)) {
+                        clientHandler.sendMessage("VIDEO_CALL_REJECT:" + clientHandlerSender.getUsername() + ":");
+                        return;
+                    }
+                    break;
+
+                case "VIDEO_CALL_END":
+                    receiver = parts[1];
+
+                    if (Objects.equals(clientHandler.getUsername(), receiver)) {
+                        clientHandler.sendMessage("VIDEO_CALL_END:" + clientHandlerSender.getUsername() + ":");
+                        return;
+                    }
+                    break;
+
+                case "VIDEO_FRAME":
+                    receiver = parts[1];
+                    String frameData = parts[2];
+
+                    if (Objects.equals(clientHandler.getUsername(), receiver)) {
+                        clientHandler.sendMessage("VIDEO_FRAME:" + clientHandlerSender.getUsername() + ":" + frameData);
+                        return;
+                    }
+                    break;
+                // ---
 
                 default:
                     System.err.println("Message de type inconnu reçu par le serveur: " + message);

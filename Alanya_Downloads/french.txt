@@ -1,0 +1,7 @@
+To change language, rename this file to either:
+
+english.txt
+french.txt
+italian.txt
+german.txt
+spanish.txt

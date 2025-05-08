@@ -7,47 +7,40 @@ import java.io.FileInputStream;
 
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.layout.*;
+import javafx.scene.control.*;
 import javafx.scene.text.Text;
 import javafx.geometry.Insets;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.event.ActionEvent;
 import javafx.stage.FileChooser;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.TextFlow;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
 import javafx.application.Platform;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.StackPane;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.control.ScrollPane;
 
 public class ClientController {
 
-	@FXML private HBox mainHBox;
-	@FXML private AnchorPane leftPane;
-	@FXML private ScrollPane usersScrollPane;
+	public HBox mainHBox;
+	public HBox chatHeader;
+	public Text welcomeText;
+	public Button user1Button;
+	public Button user2Button;
+	public AnchorPane leftPane;
 	@FXML private VBox usersVBox;
-	@FXML private Button user1Button;
-	@FXML private Button user2Button;
-	@FXML private StackPane rightPaneContainer;
-	@FXML private BorderPane initialRightPane;
-	@FXML private Text welcomeText;
-	@FXML private VBox chatInterface;
-	@FXML private HBox chatHeader;
-	@FXML private ImageView profilePicture;
+	public HBox messageInputArea;
+	public Button videoCallButton;
+	public Button sendMessageButton;
 	@FXML private Text userNameText;
-	@FXML private Button videoCallButton;
-	@FXML private ScrollPane messagesScrollPane;
 	@FXML private VBox messagesVBox;
-	@FXML private HBox messageInputArea;
+	@FXML private VBox chatInterface;
+	public StackPane rightPaneContainer;
 	@FXML private Button sendFileButton;
 	@FXML private TextField messageInput;
-	@FXML private Button sendMessageButton;
+	@FXML private ImageView profilePicture;
+	@FXML private ScrollPane usersScrollPane;
+	@FXML private BorderPane initialRightPane;
+	@FXML private ScrollPane messagesScrollPane;
 
 	private Client currentClient;
 	public void setCurrentClient(Client client) {
@@ -156,12 +149,7 @@ public class ClientController {
 	}
 
 	@FXML
-	public void onVideoCallClick(ActionEvent event) {
-		System.out.println("Appel vidéo avec : " + currentUser);
-	}
-
-	@FXML
-	public void onSendFileClick(ActionEvent event) {
+	public void onSendFileClick() {
 		if (currentUser == null) {
 			System.out.println("Aucun utilisateur sélectionné pour l'envoi de fichier");
 			return;
@@ -217,7 +205,7 @@ public class ClientController {
 
 			// Lire le fichier et l'envoyer par morceaux
 			try (FileInputStream fileInputStream = new FileInputStream(file)) {
-				byte[] buffer = new byte[8192]; // 8 Ko par morceau
+				byte[] buffer = new byte[1024 * 1024]; // 8 Ko par morceau
 				int bytesRead;
 
 				while ((bytesRead = fileInputStream.read(buffer)) != -1) {
@@ -353,4 +341,16 @@ public class ClientController {
 			currentUser = null;
 		}
 	}
+
+	@FXML
+	public void onVideoCallClick() {
+		if (currentUser == null) {
+			System.out.println("Aucun utilisateur sélectionné pour l'appel vidéo.");
+			return;
+		}
+
+		System.out.println("Initiation d'un appel vidéo avec : " + currentUser);
+		currentClient.initiateVideoCall(currentUser);
+	}
+
 }

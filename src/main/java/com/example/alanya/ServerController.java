@@ -15,11 +15,10 @@ import java.util.HashMap;
 
 public class ServerController {
 
-	@FXML
-	private HBox mainHBox;
-
-	@FXML
-	private AnchorPane leftPane;
+	public HBox mainHBox;
+	public AnchorPane leftPane;
+	public BorderPane rightPane;
+	public AnchorPane statusPane;
 
 	@FXML
 	private ScrollPane clientsScrollPane;
@@ -28,19 +27,7 @@ public class ServerController {
 	private VBox clientsVBox;
 
 	@FXML
-	private Button button1;
-
-	@FXML
-	private Button button2;
-
-	@FXML
-	private AnchorPane statusPane;
-
-	@FXML
 	private Text onlineCountText;
-
-	@FXML
-	private BorderPane rightPane;
 
 	@FXML
 	private Text serverStatusText;
@@ -56,10 +43,6 @@ public class ServerController {
 		// Initialisation du contrôleur
 		serverStatusText.setText("Serveur en écoute permanente...");
 		updateOnlineCount();
-	}
-
-	public void setServerInstance(Server server) {
-		// Référence au serveur principal
 	}
 
 	@FXML

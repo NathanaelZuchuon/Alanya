@@ -1,23 +1,31 @@
 package com.example.alanya;
 
-import java.awt.*;
 import java.io.*;
+import java.awt.*;
 import java.net.*;
-import java.util.Base64;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Objects;
+import java.util.*;
 
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 import javafx.stage.Stage;
+import javafx.scene.Parent;
 import javafx.fxml.FXMLLoader;
 import javafx.concurrent.Task;
+import javafx.stage.StageStyle;
 import javafx.scene.image.Image;
+import javafx.scene.control.Alert;
 import javafx.application.Platform;
+import javafx.scene.control.ButtonBar;
 import javafx.application.Application;
+import javafx.scene.control.ButtonType;
+
+import org.bytedeco.javacv.*;
+import org.bytedeco.javacv.Frame;
+import java.awt.image.BufferedImage;
+import javafx.embed.swing.SwingFXUtils;
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.opencv.opencv_core.*;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_imgcodecs;
 
 public class Client extends Application {
 	private static final String SERVER_ADDRESS = "localhost";
@@ -28,6 +36,199 @@ public class Client extends Application {
 	private static BufferedReader in;
 
 	private static boolean connected = false;
+
+	// ---
+	private static Thread videoThread;
+	private static FrameGrabber grabber;
+	private static boolean isInVideoCall = false;
+	private static String videoCallPartner = null;
+	private static OpenCVFrameConverter.ToMat converter;
+	private static VideoCallController videoCallController;
+
+	public void initiateVideoCall(String recipient) {
+		if (connected && out != null) {
+			sendMessage("VIDEO_CALL_REQUEST", recipient, "");
+			System.out.println("Demande d'appel vidéo envoyée à " + recipient);
+
+		} else {
+			System.err.println("Impossible d'initier l'appel vidéo : non connecté.");
+		}
+	}
+
+	public void acceptVideoCall(String caller) {
+		if (connected && out != null) {
+			sendMessage("VIDEO_CALL_ACCEPT", caller, "");
+
+			// Ouvrir la fenêtre d'appel vidéo
+			Platform.runLater(() -> {
+				try {
+					startVideoCall(caller);
+
+				} catch (Exception e) {
+					System.err.println("Erreur lors du démarrage de l'appel vidéo: " + e.getMessage());
+					e.printStackTrace();
+				}
+			});
+		}
+	}
+
+	public void rejectVideoCall(String caller) {
+		if (connected && out != null) {
+			sendMessage("VIDEO_CALL_REJECT", caller, "");
+		}
+	}
+
+	public void endVideoCall() {
+		if (videoCallPartner != null && connected && out != null) {
+			sendMessage("VIDEO_CALL_END", videoCallPartner, "");
+			stopVideoCall();
+		}
+	}
+
+	private void startVideoCall(String partner) throws Exception {
+		videoCallPartner = partner;
+		isInVideoCall = true;
+
+		// Ouvrir la fenêtre d'appel vidéo
+		FXMLLoader loader = new FXMLLoader(getClass().getResource("videocall.fxml"));
+		Parent root = loader.load();
+		videoCallController = loader.getController();
+		videoCallController.setCurrentClient(this);
+		videoCallController.setPartnerName(partner);
+
+		Stage videoStage = new Stage();
+		videoStage.setTitle("Appel vidéo avec " + partner);
+		videoStage.setScene(new Scene(root, 800, 600));
+
+		Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
+		videoStage.getIcons().add(icon);
+
+		videoStage.setOnCloseRequest(e -> {
+			endVideoCall();
+		});
+
+		videoStage.show();
+
+		// Démarrer la capture vidéo
+		startVideoCapture();
+	}
+
+	private void stopVideoCall() {
+		isInVideoCall = false;
+		videoCallPartner = null;
+
+		// Arrêter la capture vidéo
+		if (grabber != null) {
+			try {
+				grabber.stop();
+				grabber.release();
+
+			} catch (Exception e) {
+				System.err.println("Erreur lors de l'arrêt de la capture vidéo: " + e.getMessage());
+			}
+		}
+
+		// Arrêter le thread de capture
+		if (videoThread != null && videoThread.isAlive()) {
+			videoThread.interrupt();
+		}
+
+		// Fermer la fenêtre d'appel vidéo
+		if (videoCallController != null) {
+			Platform.runLater(() -> {
+				Stage stage = (Stage) videoCallController.getLocalVideoView().getScene().getWindow();
+				stage.close();
+			});
+		}
+	}
+
+	private void startVideoCapture() {
+		videoThread = new Thread(() -> {
+			try {
+				// Initialiser la capture vidéo
+				grabber = new OpenCVFrameGrabber(0); // 0 pour la webcam par défaut
+				converter = new OpenCVFrameConverter.ToMat();
+				grabber.start();
+
+				// Boucle de capture et d'envoi des frames
+				while (isInVideoCall) {
+					try {
+						Frame frame = grabber.grab();
+						if (frame != null) {
+							// Afficher la vidéo locale
+							BufferedImage bufferedImage = Java2DFrameUtils.toBufferedImage(frame);
+							Image image = SwingFXUtils.toFXImage(bufferedImage, null);
+
+							Platform.runLater(() -> {
+								videoCallController.updateLocalVideo(image);
+							});
+
+							// Envoyer la frame au partenaire
+							sendVideoFrame(frame);
+
+							// Petite pause pour éviter de surcharger le réseau
+							Thread.sleep(30); // ~30 FPS
+						}
+
+					} catch (InterruptedException e) {
+						break;
+					}
+				}
+
+			} catch (Exception e) {
+				System.err.println("Erreur dans la capture vidéo: " + e.getMessage());
+				e.printStackTrace();
+
+			} finally {
+				isInVideoCall = false;
+				try {
+					if (grabber != null) {
+						grabber.stop();
+						grabber.release();
+					}
+
+				} catch (Exception e) {
+					System.err.println("Erreur lors de la fermeture de la capture vidéo: " + e.getMessage());
+				}
+			}
+		});
+
+		videoThread.setDaemon(true);
+		videoThread.start();
+	}
+
+	private void sendVideoFrame(Frame frame) {
+		if (connected && out != null && videoCallPartner != null) {
+			try {
+				// Convertir la frame en Mat pour la traiter
+				Mat mat = converter.convert(frame);
+
+				// Redimensionner pour réduire la taille des données
+				Mat resized = new Mat();
+				opencv_imgproc.resize(mat, resized, new Size(320, 240));
+
+				// Convertir en JPEG pour réduire la taille
+				BytePointer buf = new BytePointer();
+				opencv_imgcodecs.imencode(".jpg", resized, buf);
+				byte[] byteArray = new byte[(int)buf.capacity()];
+				buf.get(byteArray);
+
+				// Encoder en Base64
+				String encodedFrame = Base64.getEncoder().encodeToString(byteArray);
+
+				// Envoyer au partenaire
+				sendMessage("VIDEO_FRAME", videoCallPartner, encodedFrame);
+
+				// Libérer la mémoire
+				buf.close();
+
+			} catch (Exception e) {
+				System.err.println("Erreur lors de l'envoi de la frame vidéo: " + e.getMessage());
+				e.printStackTrace();
+			}
+		}
+	}
+	// ---
 
 	private static ClientController controller;
 
@@ -45,6 +246,8 @@ public class Client extends Application {
 		}
 	}
 
+	public static Client th;
+
 	@Override
 	public void start(Stage stage) throws IOException {
 		FXMLLoader fxmlLoader = new FXMLLoader(Client.class.getResource("client.fxml"));
@@ -53,6 +256,10 @@ public class Client extends Application {
 		// Récupération du contrôleur
 		controller = fxmlLoader.getController();
 		controller.setCurrentClient(this);
+
+		// --- IMPORTANT
+		th = this;
+		// ---
 
 		// Configuration de la fenêtre
 		stage.setTitle("Alanya.");
@@ -233,12 +440,25 @@ public class Client extends Application {
 			FileTransfer transfer;
 
 			switch (type) {
+				// --- FILE
 				case "FILE_ERROR":
 					Platform.runLater(() -> {
 						Alert alert = new Alert(Alert.AlertType.ERROR);
+
 						alert.setTitle("Erreur d'envoi");
+
+						// ---
+						Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+						Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
+						stage.getIcons().add(icon);
+
+						StageStyle stageStyle = new Stage().getStyle();
+						alert.initStyle(stageStyle);
+						// ---
+
 						alert.setHeaderText("Il a été impossible de vous envoyer un fichier.");
 						alert.setContentText("Erreur d'envoi !");
+
 						alert.showAndWait();
 					});
 
@@ -257,7 +477,18 @@ public class Client extends Application {
 						Platform.runLater(() -> {
 							// Proposer d'ouvrir le fichier
 							Alert alert = new Alert(Alert.AlertType.INFORMATION);
+
 							alert.setTitle("Fichier reçu");
+
+							// ---
+							Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+							Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
+							stage.getIcons().add(icon);
+
+							StageStyle stageStyle = stage.getStyle();
+							alert.initStyle(stageStyle);
+							// ---
+
 							alert.setHeaderText("Fichier reçu de " + sender);
 							alert.setContentText("Le fichier " + transfer.file.getName() + " a été enregistré dans " + transfer.file.getParent());
 
@@ -338,7 +569,9 @@ public class Client extends Application {
 					fileTransfers.put(transferId, new FileTransfer(sender, receivedFile, Long.parseLong(fileSize)));
 
 					break;
+				// ---
 
+				// --- MESSAGE
 				case "MESSAGE":
 					sender = parts[1];
 					String content = parts[2];
@@ -346,7 +579,9 @@ public class Client extends Application {
 					controller.addMessage(content, false, sender);
 
 					break;
+				// ---
 
+				// --- USER
 				case "USER_CONNECTED":
 					sender = parts[1];
 
@@ -372,6 +607,137 @@ public class Client extends Application {
 					});
 
 					break;
+				// ---
+
+				// --- VIDEO-CALL
+				case "VIDEO_CALL_REQUEST":
+					sender = parts[1];
+
+					Platform.runLater(() -> {
+						// Afficher une notification d'appel entrant
+						Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+						alert.setTitle("Appel vidéo entrant");
+
+						// Configurer l'icône
+						Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+						Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
+						stage.getIcons().add(icon);
+
+						alert.setHeaderText("Appel vidéo entrant de " + sender);
+						alert.setContentText("Voulez-vous accepter cet appel vidéo ?");
+
+						ButtonType acceptButton = new ButtonType("Accepter");
+						ButtonType rejectButton = new ButtonType("Refuser", ButtonBar.ButtonData.CANCEL_CLOSE);
+						alert.getButtonTypes().setAll(acceptButton, rejectButton);
+
+						alert.showAndWait().ifPresent(response -> {
+							if (response == acceptButton) {
+								// Accepter l'appel
+								th.acceptVideoCall(sender);
+							} else {
+								// Refuser l'appel
+								th.rejectVideoCall(sender);
+							}
+						});
+					});
+					break;
+
+				case "VIDEO_CALL_ACCEPT":
+					sender = parts[1];
+
+					Platform.runLater(() -> {
+						try {
+							// Démarrer l'appel vidéo
+							th.startVideoCall(sender);
+
+						} catch (Exception e) {
+							System.err.println("Erreur lors du démarrage de l'appel vidéo: " + e.getMessage());
+							e.printStackTrace();
+						}
+					});
+					break;
+
+				case "VIDEO_CALL_REJECT":
+					sender = parts[1];
+
+					Platform.runLater(() -> {
+						Alert alert = new Alert(Alert.AlertType.INFORMATION);
+						alert.setTitle("Appel refusé");
+
+						// Configurer l'icône
+						Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+						Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
+						stage.getIcons().add(icon);
+
+						alert.setHeaderText("Appel refusé");
+						alert.setContentText(sender + " a refusé votre appel vidéo.");
+						alert.showAndWait();
+					});
+					break;
+
+				case "VIDEO_CALL_END":
+					sender = parts[1];
+
+					if (isInVideoCall && videoCallPartner != null && videoCallPartner.equals(sender)) {
+						Platform.runLater(() -> {
+							// Afficher un message que l'appel a été terminé
+							Alert alert = new Alert(Alert.AlertType.INFORMATION);
+							alert.setTitle("Appel terminé");
+
+							// Configurer l'icône
+							Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+							Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
+							stage.getIcons().add(icon);
+
+							alert.setHeaderText("Appel terminé");
+							alert.setContentText("L'appel vidéo avec " + sender + " a été terminé.");
+							alert.showAndWait();
+
+							// Arrêter l'appel côté local
+							th.stopVideoCall();
+						});
+					}
+					break;
+
+				case "VIDEO_FRAME":
+					sender = parts[1];
+					String frameData = parts[2];
+
+					if (isInVideoCall && videoCallPartner != null && videoCallPartner.equals(sender)) {
+						try {
+							// Décoder la frame
+							byte[] imageData = Base64.getDecoder().decode(frameData);
+
+							// Créer un BytePointer à partir des données décodées
+							BytePointer bytePointer = new BytePointer(imageData);
+
+							// Convertir en Mat
+							Mat mat = opencv_imgcodecs.imdecode(new Mat(bytePointer), opencv_imgcodecs.IMREAD_COLOR);
+
+							// Convertir en Frame
+							Frame frame = converter.convert(mat);
+
+							// Convertir en BufferedImage
+							BufferedImage bufferedImage = Java2DFrameUtils.toBufferedImage(frame);
+
+							// Convertir en Image JavaFX
+							Image image = SwingFXUtils.toFXImage(bufferedImage, null);
+
+							// Afficher dans l'interface
+							Platform.runLater(() -> {
+								videoCallController.updateRemoteVideo(image);
+							});
+
+							// Libérer les ressources
+							bytePointer.close();
+
+						} catch (Exception e) {
+							System.err.println("Erreur lors de la réception de la frame vidéo: " + e.getMessage());
+							e.printStackTrace();
+						}
+					}
+					break;
+				// ---
 
 				default:
 					System.out.println("Message de type inconnu reçu par le client: " + message);

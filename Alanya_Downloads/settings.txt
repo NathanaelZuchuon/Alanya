@@ -1,0 +1,20 @@
+CPU : Intel Core i7-7820HQ 7th Gen 2.90Ghz~3.9Ghz 4 coeurs 8 Threads
+RAM : 16Go DDR4 2400MHz
+GPU0 (integré dans le CPU) : Intel(R) HD Graphics 630 128Mo VRAM
+GPU1 : NVDIA GeForce 940 MX 2Go VRAM GDDR5
+SSD : Micron 110 SATA 512Go
+Carte mère : Dell Inc. Product 0DN786 Version A00 
+Modèle : Dell Latitude 5580 31G02N2
+Version BIOS : 1.36.0
+Windows 11 21H2, Ubuntu 22.04 Dual Boot 64Bits
+Taille : 15.6"
+Bluetooth : Intel(R) Wireless Buetooth(R)
+Carte réseau : Intel (R) Dual Band Wireless-AC 8265, Intel(R) Ethernet Connection (5) l219-LM
+Empreintes digitales
+Webcam integré
+Clavier QWERTY alphanumérique retroeclairé Blanc
+Connectivité :
+5 Ports USB dont 1 USB-C, 1 USB-B
+1 Port HDMI
+1 Port JACK
+1 Port SD

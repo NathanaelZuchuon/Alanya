@@ -1,8 +1,10 @@
 module com.example.alanya {
-    requires javafx.controls;
+	requires javafx.web;
     requires javafx.fxml;
-    requires javafx.web;
-	requires java.desktop;
+	requires javafx.swing;
+	requires javafx.controls;
+	requires org.bytedeco.opencv;
+	requires org.bytedeco.javacv;
 
 	opens com.example.alanya to javafx.fxml;
     exports com.example.alanya;
