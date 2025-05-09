@@ -5,6 +5,8 @@ import java.awt.*;
 import java.net.*;
 import java.util.*;
 
+import javax.sound.sampled.*;
+
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.scene.Parent;
@@ -18,9 +20,11 @@ import javafx.scene.control.ButtonBar;
 import javafx.application.Application;
 import javafx.scene.control.ButtonType;
 
+import java.util.Arrays;
 import org.bytedeco.javacv.*;
 import org.bytedeco.javacv.Frame;
 import java.awt.image.BufferedImage;
+
 import javafx.embed.swing.SwingFXUtils;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.opencv.opencv_core.*;
@@ -28,7 +32,7 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.global.opencv_imgcodecs;
 
 public class Client extends Application {
-	private static final String SERVER_ADDRESS = "localhost";
+	private static final String SERVER_ADDRESS = "192.168.41.98";
 	private static final int SERVER_PORT = 8080;
 
 	private static Socket socket;
@@ -38,6 +42,12 @@ public class Client extends Application {
 	private static boolean connected = false;
 
 	// ---
+	private static Thread audioThread;
+	private static TargetDataLine audioLine;
+	private static SourceDataLine audioOutput;
+	private static AudioFormat audioFormat;
+	private static boolean isAudioTransmitting = false;
+
 	private static Thread videoThread;
 	private static FrameGrabber grabber;
 	private static boolean isInVideoCall = false;
@@ -98,7 +108,7 @@ public class Client extends Application {
 
 		Stage videoStage = new Stage();
 		videoStage.setTitle("Appel vidéo avec " + partner);
-		videoStage.setScene(new Scene(root, 800, 600));
+		videoStage.setScene(new Scene(root, 1000, 600));
 
 		Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
 		videoStage.getIcons().add(icon);
@@ -111,6 +121,99 @@ public class Client extends Application {
 
 		// Démarrer la capture vidéo
 		startVideoCapture();
+
+		// Démarrer la capture audio
+		startAudioCapture();
+	}
+
+	private void startAudioCapture() {
+		// Définir le format audio: 44.1KHz, 16bit, mono
+		audioFormat = new AudioFormat(44100.0f, 16, 1, true, false);
+
+		// Créer un thread pour la capture et l'envoi de l'audio
+		audioThread = new Thread(() -> {
+			try {
+				// Récupérer la ligne d'entrée audio (microphone)
+				DataLine.Info info = new DataLine.Info(TargetDataLine.class, audioFormat);
+				if (!AudioSystem.isLineSupported(info)) {
+					System.err.println("Le format audio n'est pas supporté");
+					return;
+				}
+
+				audioLine = (TargetDataLine) AudioSystem.getLine(info);
+				audioLine.open(audioFormat);
+				audioLine.start();
+
+				isAudioTransmitting = true;
+
+				// Créer un buffer pour lire les données audio
+				byte[] buffer = new byte[1024];
+				int bytesRead;
+
+				// Boucle de capture et d'envoi des données audio
+				while (isInVideoCall && isAudioTransmitting) {
+					bytesRead = audioLine.read(buffer, 0, buffer.length);
+					if (bytesRead > 0) {
+						// Encoder et envoyer les données audio
+						String encodedAudio = Base64.getEncoder().encodeToString(Arrays.copyOf(buffer, bytesRead));
+						sendMessage("AUDIO_DATA", videoCallPartner, encodedAudio);
+					}
+
+					// Petite pause pour éviter de surcharger le réseau
+					Thread.sleep(10);
+				}
+
+			} catch (LineUnavailableException e) {
+				System.err.println("Impossible d'accéder au microphone: " + e.getMessage());
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				// Le thread a été interrompu, c'est normal lors de l'arrêt
+			} finally {
+				stopAudioCapture();
+			}
+		});
+
+		audioThread.setDaemon(true);
+		audioThread.start();
+	}
+
+	private void stopAudioCapture() {
+		isAudioTransmitting = false;
+
+		if (audioLine != null) {
+			audioLine.stop();
+			audioLine.close();
+			audioLine = null;
+		}
+
+		if (audioOutput != null) {
+			audioOutput.stop();
+			audioOutput.close();
+			audioOutput = null;
+		}
+
+		if (audioThread != null && audioThread.isAlive()) {
+			audioThread.interrupt();
+		}
+	}
+
+	private void playAudio(byte[] audioData) {
+		try {
+			if (audioOutput == null || !audioOutput.isOpen()) {
+				// Initialiser la ligne de sortie audio si nécessaire
+				DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
+				audioOutput = (SourceDataLine) AudioSystem.getLine(info);
+				audioOutput.open(audioFormat);
+				audioOutput.start();
+			}
+
+			// Jouer les données audio
+			audioOutput.write(audioData, 0, audioData.length);
+
+		} catch (LineUnavailableException e) {
+			System.err.println("Erreur lors de la lecture audio: " + e.getMessage());
+			e.printStackTrace();
+		}
 	}
 
 	private void stopVideoCall() {
@@ -128,10 +231,13 @@ public class Client extends Application {
 			}
 		}
 
-		// Arrêter le thread de capture
+		// Arrêter le thread de capture vidéo
 		if (videoThread != null && videoThread.isAlive()) {
 			videoThread.interrupt();
 		}
+
+		// Arrêter la capture audio
+		stopAudioCapture();
 
 		// Fermer la fenêtre d'appel vidéo
 		if (videoCallController != null) {
@@ -733,6 +839,25 @@ public class Client extends Application {
 
 						} catch (Exception e) {
 							System.err.println("Erreur lors de la réception de la frame vidéo: " + e.getMessage());
+							e.printStackTrace();
+						}
+					}
+					break;
+
+				case "AUDIO_DATA":
+					sender = parts[1];
+					String audioData = parts[2];
+
+					if (isInVideoCall && videoCallPartner != null && videoCallPartner.equals(sender)) {
+						try {
+							// Décoder les données audio
+							byte[] decodedAudio = Base64.getDecoder().decode(audioData);
+
+							// Jouer l'audio
+							th.playAudio(decodedAudio);
+
+						} catch (Exception e) {
+							System.err.println("Erreur lors de la réception des données audio: " + e.getMessage());
 							e.printStackTrace();
 						}
 					}

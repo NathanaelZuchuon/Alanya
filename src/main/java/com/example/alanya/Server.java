@@ -232,6 +232,16 @@ public class Server extends Application {
                         return;
                     }
                     break;
+
+                case "AUDIO_DATA":
+                    receiver = parts[1];
+                    String audioData = parts[2];
+
+                    if (Objects.equals(clientHandler.getUsername(), receiver)) {
+                        clientHandler.sendMessage("AUDIO_DATA:" + clientHandlerSender.getUsername() + ":" + audioData);
+                        return;
+                    }
+                    break;
                 // ---
 
                 default:
