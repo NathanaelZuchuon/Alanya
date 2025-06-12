@@ -3,6 +3,7 @@ package com.example.alanya;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.sql.SQLException;
 import java.util.concurrent.*;
 
 import javafx.scene.Scene;
@@ -17,6 +18,10 @@ public class Server extends Application {
 
     private ServerController controller;
     private ServerSocket serverSocket = null;
+
+    public int getClientCount() {
+        return clients.size();
+    }
 
     private String extractAfterSecondColon(String str) {
         // Trouver l'index de la première occurrence de " : "
@@ -153,6 +158,16 @@ public class Server extends Application {
                     receiver = parts[1];
                     content = parts[2];
 
+                    try {
+                        int senderID = DatabaseManager.getUserIdByUsername(clientHandlerSender.getUsername());
+                        int receiverID = DatabaseManager.getUserIdByUsername(receiver);
+                        if (senderID != -1 && receiverID != -1) {
+                            DatabaseManager.saveMessage(senderID, receiverID, content, null);
+                        }
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+
                     if (Objects.equals(clientHandler.getUsername(), receiver)) {
                         clientHandler.sendMessage("MESSAGE:" + clientHandlerSender.getUsername() + ":" + content);
                         return;
@@ -166,17 +181,22 @@ public class Server extends Application {
                     sender = parts[1];
                     username = parts[2];
 
-                    if (Objects.equals(sender, "SERVER") && Objects.equals(username, "me")) {
-                        clientHandler.sendMessage("USER_CONNECTED:SERVER:" + clientHandlerSender.getUsername());
-                    }
+                    if (Objects.equals(sender, "SERVER")) {
+                        // Nouveau client qui vient de se connecter
+                        // 1. Envoyer tous les clients existants au nouveau client
+                        for (ClientHandler existingClient : clients) {
+                            if (!existingClient.equals(clientHandlerSender) && existingClient.getUsername() != null) {
+                                clientHandlerSender.sendMessage("USER_CONNECTED:SERVER:" + existingClient.getUsername());
+                            }
+                        }
 
-                    if (!Objects.equals(sender, "SERVER") && Objects.equals(username, "me")) {
-                        if (Objects.equals(clientHandler.getUsername(), sender)) {
-                            clientHandler.sendMessage("USER_CONNECTED:" + sender + ":" + clientHandlerSender.getUsername());
-                            return;
+                        // 2. Envoyer le nouveau client à tous les autres
+                        for (ClientHandler otherClient : clients) {
+                            if (!otherClient.equals(clientHandlerSender)) {
+                                otherClient.sendMessage("USER_CONNECTED:SERVER:" + clientHandlerSender.getUsername());
+                            }
                         }
                     }
-
                     break;
 
                 case "USER_DISCONNECTED":

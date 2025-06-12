@@ -1,9 +1,9 @@
 package com.example.alanya;
 
-import java.util.UUID;
 import java.net.Socket;
 import java.io.PrintWriter;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -13,6 +13,7 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private final Server serverInstance;
 
+    private int userID;
     private String username;
 
     public ClientHandler(Socket socket, Server serverInstance) {
@@ -32,33 +33,39 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
-            // Donner un pseudo à l'utilisateur
-            this.username = UUID.randomUUID().toString().substring(0, 8);
-            System.out.println(username);
+            // Attendre que le client envoie son username authentifié
+            String firstMessage = in.readLine();
+            if (firstMessage != null && firstMessage.startsWith("USER_CONNECTED:SERVER:")) {
+                this.username = firstMessage.split(":")[2];
 
-            // Ajouter le client à l'interface
-            serverInstance.addClientToUI(username, this);
+                // Récupérer l'ID depuis la BD
+                this.userID = DatabaseManager.getUserIdByUsername(username);
 
-            // Boucle de lecture des messages du client
+                System.out.println("Client authentifié: " + username);
+                serverInstance.addClientToUI(username, this);
+
+                // Traiter le message de connexion
+                serverInstance.broadcastMessage(firstMessage, this);
+            }
+
+            // Boucle normale
             String message;
             while ((message = in.readLine()) != null) {
                 serverInstance.broadcastMessage(message, this);
             }
 
-        } catch (IOException e) {
-            System.out.println("Erreur de communication avec " + username + ": " + e.getMessage());
-
+        } catch (IOException | SQLException e) {
+            System.out.println("Erreur: " + e.getMessage());
         } finally {
             try {
+                if (userID > 0) {
+                    DatabaseManager.updateUserStatus(userID, false);
+                }
                 socket.close();
-
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
-
-            } finally {
-                // Informer tous les clients de la nouvelle déconnexion
-                serverInstance.broadcastMessage("USER_DISCONNECTED:SERVER:me", this);
             }
+            serverInstance.broadcastMessage("USER_DISCONNECTED:SERVER:" + username, this);
         }
     }
 

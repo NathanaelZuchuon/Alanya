@@ -3,6 +3,7 @@ package com.example.alanya;
 import java.io.*;
 import java.awt.*;
 import java.net.*;
+import java.sql.SQLException;
 import java.util.*;
 
 import javax.sound.sampled.*;
@@ -32,13 +33,19 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.global.opencv_imgcodecs;
 
 public class Client extends Application {
-	private static final String SERVER_ADDRESS = "192.168.41.98";
+	private static final String SERVER_ADDRESS = "localhost";
 	private static final int SERVER_PORT = 8080;
 
 	private static Socket socket;
 	private static PrintWriter out;
 	private static BufferedReader in;
 
+	private static int myUserID;
+	public static int getMyUserID() {
+		return myUserID;
+	}
+
+	public static String myUsername;
 	private static boolean connected = false;
 
 	// ---
@@ -354,30 +361,76 @@ public class Client extends Application {
 
 	public static Client th;
 
+//	@Override
+//	public void start(Stage stage) throws IOException {
+//		FXMLLoader fxmlLoader = new FXMLLoader(Client.class.getResource("client.fxml"));
+//		Scene scene = new Scene(fxmlLoader.load(), 900, 600); stage.setResizable(false);
+//
+//		// Récupération du contrôleur
+//		controller = fxmlLoader.getController();
+//		controller.setCurrentClient(this);
+//
+//		// --- IMPORTANT
+//		th = this;
+//		// ---
+//
+//		// Configuration de la fenêtre
+//		stage.setTitle("Alanya.");
+//		stage.setScene(scene);
+//
+//		Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
+//		stage.getIcons().add(icon);
+//
+//		stage.setOnCloseRequest(e -> closeConnection());
+//
+//		// Affichage
+//		stage.show();
+//	}
+
 	@Override
 	public void start(Stage stage) throws IOException {
-		FXMLLoader fxmlLoader = new FXMLLoader(Client.class.getResource("client.fxml"));
-		Scene scene = new Scene(fxmlLoader.load(), 900, 600); stage.setResizable(false);
+		FXMLLoader fxmlLoader = new FXMLLoader(Client.class.getResource("login.fxml"));
+		Scene scene = new Scene(fxmlLoader.load(), 300, 400);
 
-		// Récupération du contrôleur
-		controller = fxmlLoader.getController();
-		controller.setCurrentClient(this);
+		LoginController loginController = fxmlLoader.getController();
+		loginController.setClientApp(this);
 
-		// --- IMPORTANT
-		th = this;
-		// ---
-
-		// Configuration de la fenêtre
-		stage.setTitle("Alanya.");
+		stage.setTitle("Alanya - Connexion");
 		stage.setScene(scene);
+		stage.setResizable(false);
 
 		Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
 		stage.getIcons().add(icon);
 
-		stage.setOnCloseRequest(e -> closeConnection());
-
-		// Affichage
 		stage.show();
+	}
+
+	public void setCredentials(String username, int userID) {
+		myUsername = username;
+		myUserID = userID;
+	}
+
+	public void showMainWindow(Stage loginStage) throws IOException {
+		loginStage.close();
+
+		Stage mainStage = new Stage();
+		FXMLLoader fxmlLoader = new FXMLLoader(Client.class.getResource("client.fxml"));
+		Scene scene = new Scene(fxmlLoader.load(), 900, 600);
+
+		controller = fxmlLoader.getController();
+		controller.setCurrentClient(this);
+
+		mainStage.setTitle("Alanya.");
+		mainStage.setScene(scene);
+		mainStage.setResizable(false);
+
+		Image icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("client.png")));
+		mainStage.getIcons().add(icon);
+
+		mainStage.setOnCloseRequest(e -> closeConnection());
+		mainStage.show();
+
+		connectToServer();
 	}
 
 	public static void main(String[] args) {
@@ -391,16 +444,17 @@ public class Client extends Application {
 			protected Void call() throws Exception {
 				try {
 					socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
-
 					out = new PrintWriter(socket.getOutputStream(), true);
 					in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
 					connected = true;
 
-					out.println("USER_CONNECTED:SERVER:me");
-					System.out.println("Connecté au serveur.");
+					// Envoyer le username authentifié au lieu de "me"
+					out.println("USER_CONNECTED:SERVER:" + myUsername);
+					System.out.println("Connecté au serveur en tant que: " + myUsername);
 
-					// Thread pour recevoir les messages du serveur
+					// Mettre à jour le statut dans la BD
+					DatabaseManager.saveConnectedUser(myUserID, socket.getInetAddress().getHostAddress());
+
 					Thread receiverThread = new Thread(new MessageReceiver(socket, in));
 					receiverThread.setDaemon(true);
 					receiverThread.start();

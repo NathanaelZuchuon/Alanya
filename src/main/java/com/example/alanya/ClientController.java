@@ -1,5 +1,7 @@
 package com.example.alanya;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 import java.io.File;
 import java.io.IOException;
@@ -104,6 +106,23 @@ public class ClientController {
 		// Si l'historique n'existe pas encore, créer un nouveau VBox
 		if (!userChatHistories.containsKey(username)) {
 			userChatHistories.put(username, new VBox(10));
+
+			try {
+				int currentUserID = Client.getMyUserID();
+				int otherUserID = DatabaseManager.getUserIdByUsername(username);
+
+				if (currentUserID != -1 && otherUserID != -1) {
+					ResultSet rs = DatabaseManager.getMessageHistory(currentUserID, otherUserID);
+					while (rs.next()) {
+						String content = rs.getString("content");
+						boolean isSent = rs.getInt("senderID") == currentUserID;
+						addMessage(content, isSent, username);
+					}
+				}
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+
 			userChatHistories.get(username).setPadding(new Insets(10));
 		}
 

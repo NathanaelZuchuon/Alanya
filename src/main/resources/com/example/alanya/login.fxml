@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox alignment="CENTER" prefHeight="400.0" prefWidth="300.0" spacing="20.0"
+      style="-fx-background-color: #E1F5FE;" xmlns="http://javafx.com/javafx/23.0.1"
+      xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.alanya.LoginController">
+    <padding>
+        <Insets bottom="40.0" left="40.0" right="40.0" top="40.0"/>
+    </padding>
+
+    <Label text="Connexion" style="-fx-font-size: 24px; -fx-text-fill: #01579B;"/>
+
+    <TextField fx:id="usernameField" promptText="Nom d'utilisateur"
+               style="-fx-background-color: white; -fx-border-color: #B3E5FC;"/>
+
+    <PasswordField fx:id="passwordField" promptText="Mot de passe"
+                   style="-fx-background-color: white; -fx-border-color: #B3E5FC;"/>
+
+    <Button fx:id="loginButton" text="Se connecter" onAction="#onLogin"
+            style="-fx-background-color: #0091EA; -fx-text-fill: white;"
+            prefWidth="200.0"/>
+
+    <Button fx:id="registerButton" text="Créer un compte" onAction="#onRegister"
+            style="-fx-background-color: #4FC3F7; -fx-text-fill: white;"
+            prefWidth="200.0"/>
+</VBox>
